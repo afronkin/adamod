@@ -150,7 +150,7 @@ void print_help(void)
 {
 	int i;
 	const char *help[] = {
-		"adamod 1.0 alpha1 (21 Jun 2012)\n",
+		"adamod 1.0.1 (28 Nov 2012)\n",
 		"ADABAS record modification tool.\n",
 		"Copyright (c) 2012, Alexander Fronkin\n",
 		"\n",
@@ -238,23 +238,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* Chech presence of mandatory arguments. */
-	if (options.db_id == 0) {
-		fprintf(stderr, "Error: database identifier must be specified\n");
-	}
-	if (options.file_no == 0) {
-		fprintf(stderr, "Error: database file number must be specified\n");
-	}
-	if (options.isn == 0) {
-		fprintf(stderr, "Error: record ISN must be specified\n");
-	}
-	if (options.format_buf == NULL) {
-		fprintf(stderr, "Error: format buffer must be specified\n");
-	}
-	if (options.record_buf == NULL) {
-		fprintf(stderr, "Error: record buffer must be specified\n");
-	}
-
 	/* Parse input format and encoding. */
 	if (targetInfo) {
 		if (targetInfo[0] != ',') {
@@ -269,6 +252,28 @@ int main(int argc, char *argv[])
 				targetInfo);
 			return 1;
 		}
+	}
+
+	/* Chech presence of mandatory arguments. */
+	if (options.db_id == 0) {
+		fprintf(stderr, "Error: database identifier must be specified\n");
+		return 1;
+	}
+	if (options.file_no == 0) {
+		fprintf(stderr, "Error: database file number must be specified\n");
+		return 1;
+	}
+	if (options.isn == 0) {
+		fprintf(stderr, "Error: record ISN must be specified\n");
+		return 1;
+	}
+	if (options.format_buf == NULL) {
+		fprintf(stderr, "Error: format buffer must be specified\n");
+		return 1;
+	}
+	if (options.record_buf == NULL) {
+		fprintf(stderr, "Error: record buffer must be specified\n");
+		return 1;
 	}
 
 	/* Modify specified record in ADABAS database. */
