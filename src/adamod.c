@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "adamod.h"
+#include "messages.h"
 
 /* Application options structure. */
 struct Options {
@@ -53,26 +55,27 @@ struct Options {
 static struct Options options = { 0, 0, 0, 0, NULL, NULL };
 
 /* Modify specified record in ADABAS database. */
-int modify_record(void);
+AdamodStateCode modify_record(void);
 /* Open ADABAS database file. */
 int db_open(int db_id, int file_no);
 /* Close ADABAS database. */
 int db_close(int db_id);
 /* Print help information. */
 void print_help(void);
+/* Parse command line arguments. */
+AdamodStateCode parse_command_line(int argc, char *argv[]);
 
 /*
  * Modify specified record in ADABAS database.
  */
-int modify_record(void)
+AdamodStateCode modify_record(void)
 {
-	int result_code = 0;
+	int return_code = ADAMOD_SUCCESS;
 	CB_PAR cb;
 
 	/* Open ADABAS database file. */
 	if (db_open(options.db_id, options.file_no) != ADA_NORMAL) {
-		fprintf(stderr, "Error: can't open ADABAS database.\n");
-		result_code = 1;
+		return_code = ADAMOD_E_DBOPEN;
 		goto exit;
 	}
 
@@ -85,21 +88,24 @@ int modify_record(void)
 	cb.cb_isn = options.isn;
 	cb.cb_fmt_buf_lng = strlen(options.format_buf);
 	cb.cb_rec_buf_lng = strlen(options.record_buf);
-	adabas(&cb, (char *) options.format_buf, (char *) options.record_buf, NULL, NULL, NULL);
+	adabas(&cb, (char *) options.format_buf, (char *) options.record_buf,
+		NULL, NULL, NULL);
 	if (cb.cb_return_code != ADA_NORMAL) {
-		fprintf(stderr, "Error: can't modify record [%d].\n", cb.cb_return_code);
-		result_code = 1;
+		if (options.verbose_level > 0) {
+			fprintf(stderr, "Adabas DirectCall failed [%d].\n",
+				cb.cb_return_code);
+		}
+		return_code = ADAMOD_E_RECMODIFY;
 		goto exit;
 	}
 
 exit:
 	/* Close ADABAS database file. */
 	if (db_close(options.db_id) != ADA_NORMAL) {
-		fprintf(stderr, "Error: can't close ADABAS database.\n");
-		result_code = 1;
+		return_code = ADAMOD_E_DBCLOSE;
 	}
 
-	return result_code;
+	return return_code;
 }
 
 /*
@@ -150,58 +156,57 @@ void print_help(void)
 {
 	int i;
 	const char *help[] = {
-		"adamod 1.0.1 (28 Nov 2012)\n",
-		"ADABAS record modification tool.\n",
+		"adamod 1.1 (18 Dec 2012)\n",
+		"Adabas records modification tool.\n",
 		"Copyright (c) 2012, Alexander Fronkin\n",
 		"\n",
-		"usage: adamod [-hv] -t <dbid>,<fileno>\n",
-		"              <isn> <format buffer> <record buffer>\n",
-		"  -h --help        give this help\n",
-		"  -t --target      override ADABAS database identifier and file number\n",
-		"  -v --verbose     increase verbosity level (can be specified multiple times)\n",
-		"  <isn>            ISN of ADABAS record\n",
-		"  <format buffer>  ADABAS format buffer\n",
-		"  <record buffer>  ADABAS record buffer\n",
+		"Usage: adamod [-hv] -t dbid,fileno [-i isn]\n",
+		"       [-s searchbuf.valuebuf] formatbuf.recordbuf\n\n",
+		"  -h --help     print this help\n",
+		"  -i --isn      specify ISN of Adabas record\n",
+		"  -s --search   specify Adabas search and value buffers\n",
+		"  -t --target   specify target Adabas database and file\n",
+		"  -v --verbose  increase verbosity level (repeatable)\n",
+		"  formatbuf     Adabas format buffer\n",
+		"  recordbuf     Adabas record buffer\n",
 		"\n",
 		NULL};
 
-	/* Printing help information this way due to theoretic
-	   limit of string length in c89-compliant compilers. */
+	/*
+	 * Print help information from array due to theoretic
+	 * limit of string length in c89-compliant compilers.
+	 */
 	for (i = 0; help[i] != NULL; i++) {
 		fputs(help[i], stderr);
 	}
 }
 
 /*
- * Main function.
+ * Parse command line arguments.
  */
-int main(int argc, char *argv[])
+AdamodStateCode parse_command_line(int argc, char *argv[])
 {
 	int arg_no;
-	int result_code;
 	char *p;
 	char *targetInfo = NULL;
 
-	/* Parse arguments. */
-	if (argc < 2) {
+	if (argc <= 1) {
 		print_help();
-		return 1;
+		return ADAMOD_E_NOARGS;
 	}
+
 	for (arg_no = 1; arg_no < argc; arg_no++) {
 		if (argv[arg_no][0] == '-' && argv[arg_no][1] != '-') {
 			if (strchr(argv[arg_no], 'h') != NULL) {
 				print_help();
-				return 1;
+				return ADAMOD_E_NOARGS;
 			}
 
 			for (p = argv[arg_no] + 1; *p; p++) {
 				switch (*p) {
 				case 't':
 					if (arg_no + 1 >= argc) {
-						fprintf(stderr,
-							"Error: ADABAS database and/or "
-							"file must be specified.\n");
-						return 1;
+						return ADAMOD_E_NOTARGET;
 					}
 					targetInfo = argv[++arg_no];
 					p = (char *) "-";
@@ -210,18 +215,15 @@ int main(int argc, char *argv[])
 					options.verbose_level++;
 					break;
 				default:
-					fprintf(stderr, "Error: wrong argument \"-%c\".\n\n", *p);
-					return 1;
+					return ADAMOD_E_INVARG;
 				}
 			}
 		} else if (strcmp(argv[arg_no], "--help") == 0) {
 			print_help();
-			return 1;
+			return 0;
 		} else if (strncmp(argv[arg_no], "--target", 8) == 0) {
 			if (strchr(argv[arg_no], '=') == NULL) {
-				fprintf(stderr,
-					"Error: ADABAS database and/or file must be specified.\n");
-				return 1;
+				return ADAMOD_E_NOTARGET;
 			}
 			targetInfo = strchr(argv[arg_no], '=') + 1;
 		} else if (strcmp(argv[arg_no], "--verbose") == 0) {
@@ -233,8 +235,7 @@ int main(int argc, char *argv[])
 		} else if (options.record_buf == NULL) {
 			options.record_buf = argv[arg_no];
 		} else {
-			fprintf(stderr, "Error: wrong argument \"%s\".\n\n", argv[arg_no]);
-			return 1;
+			return ADAMOD_E_INVARG;
 		}
 	}
 
@@ -247,41 +248,50 @@ int main(int argc, char *argv[])
 			options.file_no = atol(strrchr(targetInfo, ',') + 1);
 		}
 		if (options.db_id < 1 || options.file_no < 1) {
-			fprintf(stderr,
-				"Error: invalid ADABAS database and/or file specified \"%s\".\n",
-				targetInfo);
-			return 1;
+			return ADAMOD_E_INVTARGET;
 		}
 	}
 
 	/* Chech presence of mandatory arguments. */
 	if (options.db_id == 0) {
-		fprintf(stderr, "Error: database identifier must be specified\n");
-		return 1;
+		return ADAMOD_E_NODB;
 	}
 	if (options.file_no == 0) {
-		fprintf(stderr, "Error: database file number must be specified\n");
-		return 1;
-	}
-	if (options.isn == 0) {
-		fprintf(stderr, "Error: record ISN must be specified\n");
-		return 1;
+		return ADAMOD_E_NOFILE;
 	}
 	if (options.format_buf == NULL) {
-		fprintf(stderr, "Error: format buffer must be specified\n");
-		return 1;
+		return ADAMOD_E_NOFBUF;
 	}
 	if (options.record_buf == NULL) {
-		fprintf(stderr, "Error: record buffer must be specified\n");
+		return ADAMOD_E_NORBUF;
+	}
+
+	/* Command line parsed successfully. */
+	return ADAMOD_SUCCESS;
+}
+
+/*
+ * Main function.
+ */
+int main(int argc, char *argv[])
+{
+	int result_code;
+
+	/* Parse command line arguments. */
+	result_code = parse_command_line(argc, argv);
+	if (result_code != ADAMOD_SUCCESS) {
+		print_message(result_code);
 		return 1;
 	}
 
 	/* Modify specified record in ADABAS database. */
 	result_code = modify_record();
-	if (result_code != 0) {
-		fprintf(stderr, "Operation failed.\n");
+	if (result_code != ADAMOD_SUCCESS) {
+		print_message(result_code);
 		return 1;
 	}
+
+	fprintf(stderr, "Done.\n");
 
 	return 0;
 }

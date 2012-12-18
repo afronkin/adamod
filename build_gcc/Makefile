@@ -1,5 +1,6 @@
 SRC_DIR=../src
-OBJS=adamod.o
+INCS=../src/adamod.h ../src/messages.h
+OBJS=adamod.o messages.o
 PROGRAM=adamod
 
 CC=gcc
@@ -26,5 +27,8 @@ clean:
 verify:
 	./$(PROGRAM) -vv -t 88,12 444136 "GM6,23." "013Администрирование БД"
 
-%.o: $(SRC_DIR)/%.c
+adamod.o: $(SRC_DIR)/adamod.c $(INCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+messages.o: $(SRC_DIR)/messages.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
