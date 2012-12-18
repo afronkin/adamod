@@ -47,12 +47,24 @@ struct Options {
 	uint16_t db_id;
 	uint16_t file_no;
 	uint32_t isn;
+
+	const char *search_buf;
+	int search_buf_length;
+
+	const char *value_buf;
+	int value_buf_length;
+
 	const char *format_buf;
+	int format_buf_length;
+
 	const char *record_buf;
+	int record_buf_length;
 };
 
 /* Application options. */
-static struct Options options = { 0, 0, 0, 0, NULL, NULL };
+static struct Options options = {
+	0, 0, 0, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0
+};
 
 /* Modify specified record in ADABAS database. */
 AdamodStateCode modify_record(void);
@@ -64,6 +76,47 @@ int db_close(int db_id);
 void print_help(void);
 /* Parse command line arguments. */
 AdamodStateCode parse_command_line(int argc, char *argv[]);
+
+/*
+ * Open ADABAS database.
+ */
+int db_open(int db_id, int file_no)
+{
+	CB_PAR cb;
+	char rec_buf[10];
+
+	/* Open ADABAS database file. */
+	memset(&cb, 0, sizeof(CB_PAR));
+	cb.cb_cmd_code[0] = 'O';
+	cb.cb_cmd_code[1] = 'P';
+	CB_SET_FD(&cb, db_id, 0);
+	sprintf(rec_buf, "UPD=%d.", file_no);
+	cb.cb_rec_buf_lng = strlen(rec_buf);
+	do {
+		adabas(&cb, NULL, rec_buf, NULL, NULL, NULL);
+	} while (cb.cb_return_code == ADA_TABT);
+
+	cb.cb_isn_quantity = 0;
+	cb.cb_isn_ll = 0;
+
+	return cb.cb_return_code;
+}
+
+/*
+ * Close ADABAS database.
+ */
+int db_close(int db_id)
+{
+	CB_PAR cb;
+
+	memset(&cb, 0, sizeof(CB_PAR));
+	cb.cb_cmd_code[0] = 'C';
+	cb.cb_cmd_code[1] = 'L';
+	CB_SET_FD(&cb, db_id, 0);
+	adabas(&cb, NULL, NULL, NULL, NULL, NULL);
+
+	return cb.cb_return_code;
+}
 
 /*
  * Modify specified record in ADABAS database.
@@ -109,47 +162,6 @@ exit:
 }
 
 /*
- * Open ADABAS database.
- */
-int db_open(int db_id, int file_no)
-{
-	CB_PAR cb;
-	char rec_buf[10];
-
-	/* Open ADABAS database file. */
-	memset(&cb, 0, sizeof(CB_PAR));
-	cb.cb_cmd_code[0] = 'O';
-	cb.cb_cmd_code[1] = 'P';
-	CB_SET_FD(&cb, db_id, 0);
-	sprintf(rec_buf, "UPD=%d.", file_no);
-	cb.cb_rec_buf_lng = strlen(rec_buf);
-	do {
-		adabas(&cb, NULL, rec_buf, NULL, NULL, NULL);
-	} while (cb.cb_return_code == ADA_TABT);
-
-	cb.cb_isn_quantity = 0;
-	cb.cb_isn_ll = 0;
-
-	return cb.cb_return_code;
-}
-
-/*
- * Close ADABAS database.
- */
-int db_close(int db_id)
-{
-	CB_PAR cb;
-
-	memset(&cb, 0, sizeof(CB_PAR));
-	cb.cb_cmd_code[0] = 'C';
-	cb.cb_cmd_code[1] = 'L';
-	CB_SET_FD(&cb, db_id, 0);
-	adabas(&cb, NULL, NULL, NULL, NULL, NULL);
-
-	return cb.cb_return_code;
-}
-
-/*
  * Print help information.
  */
 void print_help(void)
@@ -188,7 +200,9 @@ AdamodStateCode parse_command_line(int argc, char *argv[])
 {
 	int arg_no;
 	char *p;
+	char *searchInfo = NULL;
 	char *targetInfo = NULL;
+	char *modifyInfo = NULL;
 
 	if (argc <= 1) {
 		print_help();
@@ -204,9 +218,23 @@ AdamodStateCode parse_command_line(int argc, char *argv[])
 
 			for (p = argv[arg_no] + 1; *p; p++) {
 				switch (*p) {
+				case 'i':
+					if (arg_no + 1 >= argc) {
+						return ADAMOD_E_NOISN;
+					}
+					options.isn = atol(argv[++arg_no]);
+					p = (char *) "-";
+					break;
+				case 's':
+					if (arg_no + 1 >= argc) {
+						return ADAMOD_E_INVSEARCH;
+					}
+					searchInfo = argv[++arg_no];
+					p = (char *) "-";
+					break;
 				case 't':
 					if (arg_no + 1 >= argc) {
-						return ADAMOD_E_NOTARGET;
+						return ADAMOD_E_INVTARGET;
 					}
 					targetInfo = argv[++arg_no];
 					p = (char *) "-";
@@ -221,25 +249,33 @@ AdamodStateCode parse_command_line(int argc, char *argv[])
 		} else if (strcmp(argv[arg_no], "--help") == 0) {
 			print_help();
 			return 0;
+		} else if (strncmp(argv[arg_no], "--isn", 5) == 0) {
+			if (strchr(argv[arg_no], '=') == NULL) {
+				return ADAMOD_E_NOISN;
+			}
+			options.isn = atol(strchr(argv[arg_no], '=') + 1);
+		} else if (strncmp(argv[arg_no], "--search", 8) == 0) {
+			if (strchr(argv[arg_no], '=') == NULL) {
+				return ADAMOD_E_INVSEARCH;
+			}
+			searchInfo = strchr(argv[arg_no], '=') + 1;
 		} else if (strncmp(argv[arg_no], "--target", 8) == 0) {
 			if (strchr(argv[arg_no], '=') == NULL) {
-				return ADAMOD_E_NOTARGET;
+				return ADAMOD_E_INVTARGET;
 			}
 			targetInfo = strchr(argv[arg_no], '=') + 1;
 		} else if (strcmp(argv[arg_no], "--verbose") == 0) {
 			options.verbose_level++;
 		} else if (options.isn == 0) {
 			options.isn = atol(argv[arg_no]);
-		} else if (options.format_buf == NULL) {
-			options.format_buf = argv[arg_no];
-		} else if (options.record_buf == NULL) {
-			options.record_buf = argv[arg_no];
+		} else if (modifyInfo == NULL) {
+			modifyInfo = argv[arg_no];
 		} else {
 			return ADAMOD_E_INVARG;
 		}
 	}
 
-	/* Parse input format and encoding. */
+	/* Parse Adabas database identifier and file number. */
 	if (targetInfo) {
 		if (targetInfo[0] != ',') {
 			options.db_id = atol(targetInfo);
@@ -250,6 +286,34 @@ AdamodStateCode parse_command_line(int argc, char *argv[])
 		if (options.db_id < 1 || options.file_no < 1) {
 			return ADAMOD_E_INVTARGET;
 		}
+	}
+
+	/* Parse search and value buffers. */
+	if (searchInfo) {
+		if (searchInfo[0] == '=' || strchr(searchInfo, '=') == NULL) {
+			return ADAMOD_E_INVSEARCH;
+		}
+
+		options.search_buf = searchInfo;
+		options.value_buf = strchr(searchInfo, '=') + 1;
+
+		options.search_buf_length
+			= options.value_buf - options.search_buf - 1;
+		options.value_buf_length = strlen(options.value_buf);
+	}
+
+	/* Parse format and record buffers. */
+	if (modifyInfo) {
+		if (modifyInfo[0] == '=' || strchr(modifyInfo, '=') == NULL) {
+			return ADAMOD_E_INVMODIFY;
+		}
+
+		options.format_buf = modifyInfo;
+		options.record_buf = strchr(modifyInfo, '=') + 1;
+
+		options.format_buf_length
+			= options.record_buf - options.format_buf - 1;
+		options.record_buf_length = strlen(options.record_buf);
 	}
 
 	/* Chech presence of mandatory arguments. */

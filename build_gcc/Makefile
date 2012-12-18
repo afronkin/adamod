@@ -25,7 +25,8 @@ clean:
 	@echo $@ done.
 
 verify:
-	./$(PROGRAM) -vv -t 88,12 444136 "GM6,23." "013Администрирование БД"
+	./$(PROGRAM) -vv -t 88,12 -i 444136 "GM6,23.013Администрирование БД"
+	./$(PROGRAM) -vv -t 88,12 -s "ID.=RU\TOUNB\HOLD\12345" "GM6,23.013Администрирование БД"
 
 adamod.o: $(SRC_DIR)/adamod.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
