@@ -105,6 +105,12 @@ int parse_command_line(int argc, char *argv[])
 	int option;
 	char *target_arg = NULL;
 
+	/* Print help when no arguments specified. */
+	if (argc <= 1) {
+		print_help();
+		return ADAMOD_E_NOARGS;
+	}
+
 	/* Parse command line arguments with getopt_long(). */
 	while ((option = getopt_long(argc, argv, short_options,
 		long_options, NULL)) != -1)
