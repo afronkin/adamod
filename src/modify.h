@@ -31,16 +31,10 @@
  * OF SUCH DAMAGE.
  */
 
-#if !defined(MESSAGES_H)
-#define MESSAGES_H
+#if !defined(MODIFY_H)
+#define MODIFY_H
 
-#include <adabas.h>
+/* Search records in specified Adabas file and modify found records. */
+int modify_file_records(void);
 
-/* Print message for specified application state code. */
-void print_message(AdamodStateCode code);
-/* Print Adabas buffer content. */
-void dump_adabas_buf(unsigned char *buf, unsigned int buf_len);
-/* Print Adabas control block content. */
-void dump_adabas_cb(CB_PAR *cb_);
-
-#endif /* MESSAGES_H */
+#endif /* MODIFY_H */

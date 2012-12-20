@@ -34,22 +34,48 @@
 #if !defined(ADAMOD_H)
 #define ADAMOD_H
 
+#include <stdio.h>
+#include <stdint.h>
+
 /* Codes of application states. */
 typedef enum {
 	ADAMOD_SUCCESS = 0,
-	ADAMOD_E_NOARGS = 1,
-	ADAMOD_E_INVARG = 2,
-	ADAMOD_E_INVTARGET = 3,
-	ADAMOD_E_NOISN = 4,
-	ADAMOD_E_INVSEARCH = 5,
-	ADAMOD_E_INVMODIFY = 6,
-	ADAMOD_E_NODB = 7,
-	ADAMOD_E_NOFILE = 8,
-	ADAMOD_E_NOFBUF = 9,
-	ADAMOD_E_NORBUF = 10,
-	ADAMOD_E_DBOPEN = 11,
-	ADAMOD_E_DBCLOSE = 12,
-	ADAMOD_E_RECMODIFY = 13
+
+	ADAMOD_E_NOARGS,
+	ADAMOD_E_INVARG,
+	ADAMOD_E_INVTARGET,
+	ADAMOD_E_INVSEARCH,
+	ADAMOD_E_INVMODIFY,
+	ADAMOD_E_NOMODIFY,
+	ADAMOD_E_ADABAS_OP,
+	ADAMOD_E_ADABAS_CL,
+	ADAMOD_E_ADABAS_S1,
+	ADAMOD_E_ADABAS_L2,
+	ADAMOD_E_ADABAS_A1,
+	ADAMOD_E_ADABAS_ET,
+
+	ADAMOD_M_DRYMODE,
+	ADAMOD_M_DONE
 } AdamodStateCode;
+
+/* Application options structure. */
+struct Options {
+	int verbose_level;
+	int dry_mode;
+	const char *log_file_name;
+
+	uint16_t db_id;
+	uint16_t file_no;
+
+	uint32_t isn;
+	const char *search_arg;
+	const char *modify_arg;
+};
+
+/* Application options variable in module 'adamod'. */
+extern struct Options options;
+
+/* Log file. */
+extern FILE *log_file;
 
 #endif /* ADAMOD_H */

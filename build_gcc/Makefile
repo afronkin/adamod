@@ -1,6 +1,6 @@
 SRC_DIR=../src
-INCS=../src/adamod.h ../src/messages.h
-OBJS=adamod.o messages.o
+INCS=$(SRC_DIR)/adamod.h $(SRC_DIR)/messages.h $(SRC_DIR)/modify.h
+OBJS=adamod.o messages.o modify.o
 PROGRAM=adamod
 
 CC=gcc
@@ -21,15 +21,19 @@ $(PROGRAM): $(OBJS)
 	@echo $@ done.
 
 clean:
-	rm -f $(PROGRAM) $(OBJS)
+	rm -f $(PROGRAM) $(OBJS) *.log
 	@echo $@ done.
 
 verify:
-	./$(PROGRAM) -vv -t 88,12 -i 444136 "GM6,23.013Администрирование БД"
-	./$(PROGRAM) -vv -t 88,12 -s "ID.=RU\TOUNB\HOLD\12345" "GM6,23.013Администрирование БД"
+	./$(PROGRAM) -vv -t 88,100 -i 363846 "AE,4,A.test"
+#	./$(PROGRAM) -vv -t 88,100 "EM,1,A,EN,1,A,EO,1,A.   "
+#	./$(PROGRAM) -vvv -t 88,100 -l adamod.log -s "AW,6,A,D,FG,8,A,S,FG,8,A.READER2008010120081231" "FL,3,A,FK,3,A.aaabbb"
 
 adamod.o: $(SRC_DIR)/adamod.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 messages.o: $(SRC_DIR)/messages.c $(INCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+modify.o: $(SRC_DIR)/modify.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
