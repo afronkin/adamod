@@ -2,6 +2,7 @@
  * Copyright (c) 2012, Alexander Fronkin
  * All rights reserved.
  */
+
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.

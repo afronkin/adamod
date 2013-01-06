@@ -2,6 +2,7 @@
  * Copyright (c) 2012, Alexander Fronkin
  * All rights reserved.
  */
+
 /*
  * Copyright (c) 2002 Todd C. Miller <Todd.Miller@courtesan.com>
  *
