@@ -41,6 +41,7 @@ int db_open(int db_id, const char *db_options);
 int db_close(int db_id);
 
 int modify_record(ISN isn);
+int delete_record(ISN isn);
 int search_records(void);
 int scan_file(void);
 
@@ -146,7 +147,64 @@ int modify_record(ISN isn)
 	CB_SET_FD(&cb, options.db_id, options.file_no);
 
 	/* Execute Adabas direct call command ET. */
-	adabas(&cb, format_buf, record_buf, NULL, NULL, NULL);
+	adabas(&cb, NULL, NULL, NULL, NULL, NULL);
+	if (cb.cb_return_code != ADA_NORMAL) {
+		if (options.verbose_level > 0) {
+			dump_adabas_cb(&cb);
+		}
+		return ADAMOD_E_ADABAS_ET;
+	}
+
+	return ADAMOD_SUCCESS;
+}
+
+/*
+ * Delete record from the Adabas file (specified by ISN).
+ */
+int delete_record(ISN isn)
+{
+	CB_PAR cb;
+
+	/* Print ISN of record for high verbose levels. */
+	if (options.verbose_level > 2) {
+		fprintf(log_file, "%d\n", isn);
+	}
+
+	/* In dry run mode skip real record modification. */
+	if (options.dry_mode) {
+		return ADAMOD_SUCCESS;
+	}
+
+	/*
+	 * Prepare Adabas direct call control block.
+	 * Command E1 (Delete Record): delete a record.
+	 */
+	memset(&cb, 0, sizeof(CB_PAR));
+	cb.cb_cmd_code[0] = 'E';
+	cb.cb_cmd_code[1] = '1';
+	CB_SET_FD(&cb, options.db_id, options.file_no);
+	cb.cb_isn = isn;
+
+	/* Execute Adabas direct call command E1. */
+	adabas(&cb, NULL, NULL, NULL, NULL, NULL);
+	if (cb.cb_return_code != ADA_NORMAL) {
+		if (options.verbose_level > 0) {
+			dump_adabas_cb(&cb);
+		}
+		return ADAMOD_E_ADABAS_E1;
+	}
+
+	/*
+	 * Prepare Adabas direct call control block.
+	 * Command ET (End Transaction): end of a logical transaction.
+	 */
+	memset(&cb, 0, sizeof(CB_PAR));
+	cb.cb_cmd_code[0] = 'E';
+	cb.cb_cmd_code[1] = 'T';
+	CB_SET_FD(&cb, options.db_id, options.file_no);
+
+	/* Execute Adabas direct call command ET. */
+	adabas(&cb, NULL, NULL, NULL, NULL, NULL);
 	if (cb.cb_return_code != ADA_NORMAL) {
 		if (options.verbose_level > 0) {
 			dump_adabas_cb(&cb);
@@ -238,7 +296,11 @@ int search_records(void)
 			rec_no++;
 
 			/* Modify record by ISN. */
-			result_code = modify_record(isn_buf[isn_no]);
+			if (options.delete_mode) {
+				result_code = delete_record(isn_buf[isn_no]);
+			} else {
+				result_code = modify_record(isn_buf[isn_no]);
+			}
 			if (result_code != ADAMOD_SUCCESS) {
 				return result_code;
 			}
@@ -341,7 +403,11 @@ int scan_file(void)
 		}
 
 		/* Modify record by ISN. */
-		result_code = modify_record(cb.cb_isn);
+		if (options.delete_mode) {
+			result_code = delete_record(cb.cb_isn);
+		} else {
+			result_code = modify_record(cb.cb_isn);
+		}
 		if (result_code != ADAMOD_SUCCESS) {
 			return result_code;
 		}
@@ -397,8 +463,12 @@ int modify_file_records(void)
 	}
 
 	if (options.isn > 0) {
-		/* When ISN specified - modify just one record by ISN. */
-		return_code = modify_record(options.isn);
+		/* When ISN specified, modify/delete just one record by ISN. */
+		if (options.delete_mode) {
+			return_code = delete_record(options.isn);
+		} else {
+			return_code = modify_record(options.isn);
+		}
 	} else if (options.search_arg != NULL) {
 		/*
 		 * When search argument specified -

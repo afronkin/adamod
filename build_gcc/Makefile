@@ -3,11 +3,13 @@ INCS=$(SRC_DIR)/adamod.h $(SRC_DIR)/messages.h $(SRC_DIR)/modify.h
 OBJS=adamod.o messages.o modify.o
 PROGRAM=adamod
 
+ADALNK_DIR=$(dir $(ADALNKX))/..
+
 CC=gcc
 CFLAGS=-O2 -Wall -Wextra -ansi -pedantic -Wshadow -Wpointer-arith -Wmissing-prototypes \
   -Wstrict-prototypes -Wold-style-definition -Wwrite-strings -Wno-long-long \
-  -I$(SRC_DIR) -I$(SRC_DIR)/expat -I/sag/ada/v51404/inc
-LDFLAGS=-L/sag/ada/v51404/lib -Wl,-rpath=/sag/ada/v51404/lib
+  -I$(SRC_DIR) -I$(SRC_DIR)/expat -I$(ADALNK_DIR)/inc
+LDFLAGS=-L$(ADALNK_DIR)/lib -Wl,-rpath=$(ADALNK_DIR)/lib
 LIBS=-lm -ladalnkx
 
 .PHONY: all clean verify

@@ -48,6 +48,7 @@ typedef enum {
 	ADAMOD_E_ADABAS_L2,
 	ADAMOD_E_ADABAS_A1,
 	ADAMOD_E_ADABAS_ET,
+	ADAMOD_E_ADABAS_E1,
 
 	ADAMOD_M_DRYMODE,
 	ADAMOD_M_DONE
@@ -57,6 +58,7 @@ typedef enum {
 struct Options {
 	int verbose_level;
 	int dry_mode;
+	int delete_mode;
 	const char *log_file_name;
 
 	uint16_t db_id;

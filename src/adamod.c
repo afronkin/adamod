@@ -37,7 +37,7 @@
 #include "modify.h"
 
 /* Application options. */
-struct Options options = { 0, 0, NULL, 0, 0, 0, NULL, NULL };
+struct Options options = { 0, 0, 0, NULL, 0, 0, 0, NULL, NULL };
 
 /* Log file. */
 FILE *log_file = NULL;
@@ -54,14 +54,20 @@ void print_help(void)
 {
 	int i;
 	const char *help[] = {
-		"adamod 1.1 (18 Dec 2012)\n",
+		"adamod 1.2 (27 Jun 2013)\n",
 		"Adabas records modification tool.\n",
-		"Copyright (c) 2012, Alexander Fronkin\n",
+		"Copyright (c) 2013, Alexander Fronkin\n",
 		"\n",
-		"Usage: adamod [-hvd] -t dbid,fileno [-l logfile] [-i isn]\n",
-		"       [-s searchbuf.valuebuf] formatbuf.recordbuf\n\n",
+		"Usage:\n"
+                "  adamod -h\n",
+		"  adamod [-v] -t dbid,fileno [-l logfile] [-i isn]\n",
+		"         [-s searchbuf.valuebuf] formatbuf.recordbuf\n",
+		"  adamod -d [-v] -t dbid,fileno [-l logfile] [-i isn]\n",
+		"         [-s searchbuf.valuebuf]\n",
+		"\n",
 		"  -h --help     print this help\n",
 		"  -d --dry      dry run (do not modify database)\n",
+		"  -e --delete   delete records from database\n",
 		"  -i --isn      specify ISN of Adabas record\n",
 		"  -l --log      specify log file for utility messages\n",
 		"  -s --search   specify Adabas search and value buffers\n",
@@ -86,11 +92,12 @@ void print_help(void)
  */
 int parse_command_line(int argc, char *argv[])
 {
-	static const char *short_options = "hvdt:l:i:s:";
+	static const char *short_options = "hvdet:l:i:s:";
 	static struct option long_options[] = {
 		{ "help", no_argument, 0, 'h' },
 		{ "verbose", no_argument, 0, 'v' },
 		{ "dry", no_argument, 0, 'd' },
+		{ "delete", no_argument, 0, 'e' },
 		{ "target", required_argument, 0, 't' },
 		{ "log", required_argument, 0, 'l' },
 		{ "isn", required_argument, 0, 'i' },
@@ -116,6 +123,9 @@ int parse_command_line(int argc, char *argv[])
 			return ADAMOD_E_NOARGS;
 		case 'd':
 			options.dry_mode = 1;
+			break;
+		case 'e':
+			options.delete_mode = 1;
 			break;
 		case 'i':
 			options.isn = atol(optarg);
@@ -150,7 +160,7 @@ int parse_command_line(int argc, char *argv[])
 		}
 	}
 
-	if (optind < argc) {
+	if (optind < argc && !options.delete_mode) {
 		options.modify_arg = argv[optind++];
 		if (strchr(options.modify_arg, '.') == NULL) {
 			return ADAMOD_E_INVMODIFY;
@@ -161,7 +171,7 @@ int parse_command_line(int argc, char *argv[])
 	if (options.db_id < 1 || options.file_no < 1) {
 		return ADAMOD_E_INVTARGET;
 	}
-	if (options.modify_arg == NULL) {
+	if (options.modify_arg == NULL && !options.delete_mode) {
 		return ADAMOD_E_NOMODIFY;
 	}
 

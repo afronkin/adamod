@@ -59,6 +59,8 @@ struct AdamodMessage messages[] = {
 	"Error: record modification failed" },
 	{ ADAMOD_E_ADABAS_ET,
 	"Error: commit transaction failed" },
+	{ ADAMOD_E_ADABAS_E1,
+	"Error: record deleting failed" },
 
 	{ ADAMOD_M_DRYMODE,
 	"Running in dry mode" },
